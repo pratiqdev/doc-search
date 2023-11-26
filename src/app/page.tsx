@@ -119,7 +119,7 @@ const socials:Searchable[] = [
     content: '/pratiqdev - Twitter social profile.',
     tags: ['social', 'contact', 'developer', 'Michael Jannetta'],
   },
-]
+] 
 
 const images:Searchable[] = [
   {
