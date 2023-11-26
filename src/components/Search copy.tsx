@@ -21,7 +21,6 @@ import { Input } from "./ui/input"
 import { cn } from "@/lib/utils"
 import { LucideIcon, SearchIcon,XIcon, FileText, ExternalLink, FileQuestion, HashIcon, ImageIcon, TerminalSquare, GithubIcon, TwitterIcon, Linkedin, Instagram, X, Headphones, GraduationCap, BookOpenText, Trash2Icon } from "lucide-react"
 import Fuse from 'fuse.js'
-import type { FuseResult, FuseResultMatch } from "fuse.js"
 
 export type Searchable = {
 
@@ -50,7 +49,6 @@ export type SearchResult = {
   /** section represent where this should appear - is it a search result, suggested result, or 'under the hood'? */
   section: string;
 }
-
 
 export interface SearchProps
   extends React.InputHTMLAttributes<HTMLInputElement> {
@@ -105,7 +103,6 @@ const getRandomItems = (array:any[], number:number) => {
   return shuffledArray.slice(0, number); // Get the first 'number' items
 };
 
-type Filterable = { score: number, strictMatch:boolean, looseMatch:boolean, matches: string[] }
 
 const curatedSuggestions = ['contact', 'projects', 'blog', 'about', 'pratiqdev', 'react', 'nextjs', 'node', 'python', 'golang', 'api', 'docker', 'image', 'css', 'html', 'sql', 'aws', 'mongodb']
 
@@ -116,7 +113,7 @@ const Search = React.forwardRef<HTMLInputElement, SearchProps>(
   const [searchValue, setSearchValue] = useState('')
   const [strictMode, setStrictMode] = useState(false)
   const [dialogOpen, setDialogOpen] = useState(false)
-  const [searchResults, setSearchResults] = useState<FuseResult<Searchable>[]>([])
+  const [searchResults, setSearchResults] = useState<Array<SearchResult & Filterable>>([])
   const [suggestions, setSuggestions] = useState<string[]>([])
   const inputRef = React.useRef<null | HTMLInputElement>(null)
 
@@ -125,46 +122,174 @@ const Search = React.forwardRef<HTMLInputElement, SearchProps>(
   const contextPostLength = 100
   const maxSuggestionCount = 3
 
-  const fuse = React.useMemo(() => new Fuse(searchable, {
-    includeScore: true,
-    includeMatches: true,
-    useExtendedSearch: true,
-    minMatchCharLength: 1,
-    findAllMatches: true,
-    keys: ['title', 'content', 'href', 'tags'],
-  }), [searchable])
-
-
-  const renderHighlightedText = (text:string, matches:FuseResultMatch[]) => {
-    const parts = [];
-    let lastIndex = 0;
-
-    matches.forEach((match) => {
-      const [start, end] = match.indices[0];
-      const prefix = text.slice(lastIndex, start);
-      const matchText = text.slice(start, end + 1);
-
-      parts.push(prefix);
-      parts.push(<span className="highlight">{matchText}</span>);
-
-      lastIndex = end + 1;
-    });
-
-    parts.push(text.slice(lastIndex));
-
-    return <span>{parts}</span>;
-  };
 
 
   // &                                                                                                                                                                                                      
-  const SearchResult = ({  score, matches, item }: FuseResult<Searchable>) => {
-
+  const SearchResult = ({ title, subtitle, icon, context, href, score, matches }: SearchResult & Filterable) => {
     const handleAction = () => {
-      console.log('search result action:', item)
+      console.log('search result action:', href)
     }
+    return (
+      <div
+         className="flex items-center rounded-[.5rem] bg-white p-2 py-1 mx-[2px] text-sm mt-1 hover:bg-indigo-50 duration-200 flex-1 cursor-pointer group/result" 
+        onClick={handleAction} 
+        onKeyDown={(event) => onEnter(event, handleAction)}
+        tabIndex={0}
+        >
+        <div className="h-8 w-8 min-w-[2rem] flex items-center text-slate-500 group-hover/result:text-indigo-500">
+          {/* {score} */}
+          {icon}
+        </div>
+        <div className="flex flex-col overflow-hidden text-xs">
+          {/* <pre>{matches.join()}</pre> */}
+          <p className="font-regular tracking-wide" dangerouslySetInnerHTML={{ __html:highlightWord(`${title}`, searchValue)  }} />
+          <p className="font-light tracking-wide truncate whitespace-nowrap h-4" dangerouslySetInnerHTML={{ __html:highlightWord((subtitle) ?? '', searchValue)  }} />
+          <p className="font-light tracking-wide truncate whitespace-nowrap h-4" dangerouslySetInnerHTML={{ __html:highlightWord((context) ?? '', searchValue)  }} />
+          {/* <p className="font-light tracking-wide truncate whitespace-nowrap h-4" dangerouslySetInnerHTML={{ __html:highlightWord((context?.length && context.length > 1 ? context : subtitle) ?? '', searchValue)  }} /> */}
+        </div>
+      </div>
+    )
+  }
 
-    let icon: React.ReactNode;
-        switch (item.type) {
+
+    // create a unique array of strings based on the searchable content.
+  // &                                                                                                                                                                                                      
+  const termSuggestions =  React.useMemo(() => Array.from( new Set( 
+      // split at spaces and commas, 
+      searchable.map((item:Searchable) => {
+
+        // console.log('termSuggestions | converting item to string:', item)
+        let res = createSearchableString(item).split(/[ ,/]+/g)
+        // console.log('termSuggestions | resulting strings:', res)
+        return res
+      }).flat() 
+        // only words with length between 2 and 18
+      ) ).filter(item => {
+          // console.log('termSuggestions | checking item length:', item)
+        
+        return item.length > 2 && item.length < 18
+      })
+      // remove all trailing periods and flatter the array
+      .map(item => {
+          // console.log('termSuggestions | replacing trailing period from item:', item)
+          
+          let res = item.replace(/\.$/, '')
+          // console.log('termSuggestions | replacing trailing period res:', res)
+          return res.trim()
+      })
+  , [searchable])
+
+
+  type Filterable = { score: number, strictMatch:boolean, looseMatch:boolean, matches: string[] }
+
+  const countOccurrences = (word:string, string:string):number => {
+     let n = 0;
+     let position = 0;
+     while (true) {
+       position = string.indexOf(word, position);
+       if (position !== -1) {
+         n++;
+         position += word.length;
+       } else {
+         break;
+       }
+     }
+     return n;
+   }
+
+
+  // &                                                                                                                                                                                                      
+  const filterResults = React.useCallback((value: string): Array<SearchResult & Filterable>  => {
+    if(!value || value.length < minSearchLength) return []
+    
+    
+    // function filterAndRank(searchValue: string): Searchable[] {
+      // Split search value into individual words
+      const searchWords = value.toLowerCase().split(' ').filter(Boolean)
+      console.log('filtering for:', searchWords)
+
+      // Filter array based on matching criteria
+      const filteredArray: Array<Searchable & Filterable> = searchable.map(item => {
+        // const itemText = `${item.title} ${item.content} ${item.tags?.join(' ')}`.toLowerCase();
+        const itemText = createSearchableString(item)
+        const looseMatch = searchWords.some(word => itemText.includes(word))
+        const strictMatch = searchWords.every(word => itemText.includes(word))
+
+        return {
+          ...item,
+          strictMatch,
+          looseMatch,
+          score: 0,
+          matches: [],
+        } as Searchable & Filterable
+
+        // Check if all search words are present in the item
+        // return strictMode ? strictMatch : looseMatch
+      });
+
+
+      const scoredArray = filteredArray.map(item => {
+        searchWords.forEach(word => {
+          item.matches.push(`[${word}]`)
+        if(item.strictMatch){
+           item.score += strictMode ? 20 : 10
+           item.matches.push('strict')
+          }
+          if(item.looseMatch) {
+            item.score += 5 
+            item.matches.push('loose')
+        }
+
+          console.log('scoring for word:', word)
+          if(createSearchableString(item.title).includes(word) ) {
+            item.score += 50
+           item.matches.push('title')
+          }
+
+          if(item.tags && createSearchableString(item.tags).includes(word) ) {
+            item.score += 10
+           item.matches.push('tags')
+          }
+          let occ = countOccurrences(word, createSearchableString(item.content))
+          item.matches.push(`occ:${occ}`)
+          item.score += occ
+        })
+        // item.score += searchWords.reduce((count, word) => count + (( item.content.includes(word) ? 1 : 0) ), 0);
+
+        return item
+      })
+
+      // Rank the filtered array based on the number of matching criteria
+      const rankedArray = scoredArray.sort((a, b) => {
+        return b.score - a.score; // Sort in descending order of matches
+      });
+      
+
+      return rankedArray.map((searchableItem: Searchable & Filterable): SearchResult & Filterable => {
+
+        const itemText = createSearchableString(searchableItem.content, searchableItem.tags, searchableItem.href)
+
+        
+        // Create a dynamic regular expression
+        const escapedWord = searchValue.replace(/[#.*+?^${}()|[\]\\]/g, "\\$&");
+        const regex = new RegExp(`\\S*${escapedWord}(.{0,${contextPostLength}})`);
+        let matchContext = searchableItem.content
+
+        // Test if the string matches the regular expression
+        if (regex.test(itemText)) {
+            // Use the match method to get the matched substring and surrounding text
+            let ctx = itemText.match(regex)?.[0] ?? ' Failed context match...'
+            
+            let ctxArr = ctx.split(' ')
+            matchContext = ctxArr.splice(0, ctxArr.length).join(' ')
+
+
+        }
+
+
+        // Determine the icon based on the type (you may need to customize this based on your icon system)
+        let icon: React.ReactNode;
+        switch (searchableItem.type) {
           case 'page': icon = <FileText  className=""/>; break;
           case 'blog': icon = <BookOpenText  className="" />; break;
           case 'link': icon = <ExternalLink  className=""/>; break;
@@ -179,58 +304,46 @@ const Search = React.forwardRef<HTMLInputElement, SearchProps>(
           default: icon = <FileQuestion  className="" />; 
         }
 
-        let section = item.type as string
+        let section = searchableItem.type as string
 
         // swap out social types for text 'social'
-        if(['wyzant', 'twitter', 'github', 'linkedin', 'instagram'].some(x => x === type)){
+        if(['wyzant', 'twitter', 'github', 'linkedin', 'instagram'].some(x => x === searchableItem.type)){
           section = 'social'
         }
 
-        matches?.forEach((match:FuseResultMatch) => {
-          if(!match.key || !match.indices) return;
-          let key = match.key
-          if(!key || item[key]){
-            console.log(`matches | error: no key? '${key}'`, match)
-            return
-          }
-          console.log(`matches | Parsing matches for '${item[key]}'-'${item.title}':'${key}'`)
-          match.indices.forEach(indc => {
-            let value = item[key] ?? 'no-key'
-            let [start, end] = indc
-            console.log(`matches | replacing indices [${start}, ${end}]`)
-            console.log(`matches | original value '${value}'`)
-            let chunk = value.slice(start, end) ?? 'no-chunk'
-            console.log(`matches | extracted chunk '${chunk}'`)
-            item[key] = (item[key] as string).split('').toSpliced(start, end-start, `<span className="text-red-500">${chunk}</span>`).join('') ?? 'oops-result'
-          })
-        })
+        // Create and return the SearchResult object
+        return {
+          title: searchableItem.title,
+          subtitle: searchableItem.content,
+          context: matchContext,
+          icon,
+          href: searchableItem.href,
+          section,
+          score: searchableItem.score,
+          strictMatch: searchableItem.strictMatch,
+          looseMatch: searchableItem.looseMatch,
+          matches: searchableItem.matches
+        };
+      })
 
-        console.log('matches:', item.title, searchValue, {matches , item})
-    return (
-      <div
-         className="flex items-center rounded-[.5rem] bg-white p-2 py-1 mx-[2px] text-sm mt-1 hover:bg-indigo-50 duration-200 flex-1 cursor-pointer group/result" 
-        onClick={handleAction} 
-        onKeyDown={(event) => onEnter(event, handleAction)}
-        tabIndex={0}
-        >
-        <div className="h-8 w-8 min-w-[2rem] flex items-center text-slate-500 group-hover/result:text-indigo-500">
-          {/* {score} */}
-          {icon}
-        </div>
-        <div className="flex flex-col text-xs overflow-hidden">
-          {/* <pre>{JSON.stringify(item)}</pre> */}
-          {/* <pre>{JSON.stringify(matches)}</pre> */}
-          <p className="font-regular tracking-wide" dangerouslySetInnerHTML={{ __html: result.title  }} />
-          <p className="font-light tracking-wide truncate whitespace-nowrap h-4" dangerouslySetInnerHTML={{ __html: result.content  }} />
-          {/* <p className="font-light tracking-wide truncate whitespace-nowrap h-4" dangerouslySetInnerHTML={{ __html:highlightWord((context) ?? '', searchValue)  }} /> */}
-          {/* <p className="font-light tracking-wide truncate whitespace-nowrap h-4" dangerouslySetInnerHTML={{ __html:highlightWord((context?.length && context.length > 1 ? context : subtitle) ?? '', searchValue)  }} /> */}
-        </div>
-      </div>
-    )
-  }
+      .filter(item => item.score > 0)
+     
+    // }
 
 
 
+
+
+    // return [{
+    //   title: 'A result',
+    //   subtitle: 'ope',
+    //   icon: XIcon,
+    //   href: '',
+    //   section: 'Ayope'
+    // }]
+    
+  }, [searchable, searchValue, strictMode])
+      
 
 
       
@@ -276,10 +389,22 @@ const Search = React.forwardRef<HTMLInputElement, SearchProps>(
       
   // &                                                                                                                                                                                                      
   React.useEffect(() => {
-    let res = fuse.search(searchValue)
-    console.log('search results:', res)
-    setSearchResults(res)
-  }, [strictMode, searchValue, fuse])
+    setSearchResults(filterResults(searchValue.trim()))
+    // only update suggestions if there is a searchValue
+    setSuggestions((searchValue && searchValue.length) 
+      ? termSuggestions.filter((term:string, index:number) => {
+          console.log('suggest | matching suggestions for:', `"${searchValue}"`)
+          
+          return term.startsWith(searchValue.trim().includes(' ') ? searchValue.trim().split(' ')[1] : searchValue.trim()) 
+          // dont show suggestions for identical matches
+          && term !== searchValue
+          && searchValue.split(' ')?.every(singleSearchValue => singleSearchValue !== term)
+          
+          // limit visible suggestions
+        }).filter((_, idx) => idx < maxSuggestionCount)
+      : []
+    )
+  }, [strictMode, searchValue, filterResults, termSuggestions])
 
 
       
@@ -299,7 +424,7 @@ const Search = React.forwardRef<HTMLInputElement, SearchProps>(
         />
       </div>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px] max-w-[800px] bg-slate-50 rounded-lg md:rounded-lg  flex flex-col items-center gap-1 p-4">
+      <DialogContent className="sm:max-w-[425px] max-w-[600px] bg-slate-50 rounded-lg md:rounded-lg  flex flex-col items-center gap-1 p-4">
           {/* <DialogTitle className="text-left w-full p-1 mb-1">Search content</DialogTitle> */}
         
  
@@ -362,7 +487,7 @@ const Search = React.forwardRef<HTMLInputElement, SearchProps>(
           {(!searchValue) && <div className={cn("text-slate-500 text-center opacity-100 duration-200 h-[21rem] flex flex-col items-center justify-center")}>
             Explore my portfolio with a simple search
             <div className="text-sm">
-              {getRandomItems(curatedSuggestions, 3).map((x:string, idx:number) => <Button onClick={() => setSearchValue(x)} key={idx} variant="link">{x}</Button>)}
+              {getRandomItems(termSuggestions, 3).map((x:string, idx:number) => <Button onClick={() => setSearchValue(x)} key={idx} variant="link">{x}</Button>)}
             </div>
           </div>
           }
@@ -383,7 +508,7 @@ const Search = React.forwardRef<HTMLInputElement, SearchProps>(
         {/* //& Non categorized results */}
             <div >
 
-              {searchResults.map((result:FuseResult<Searchable>, index:number) => 
+              {searchResults.map((result:SearchResult & Filterable, index:number) => 
                 <SearchResult key={index} {...result} />
               )}
           
