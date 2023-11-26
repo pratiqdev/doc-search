@@ -1,113 +1,168 @@
+"use client";
+
 import Image from 'next/image'
+import { Button } from '@/components/ui/button'
+import { Search, Searchable } from '@/components/Search';
+
+
+const links:Searchable[] = [
+
+  {
+    type: 'link',
+    href: 'https://placekitten.com',
+    title: 'Placekitten - placeholder images',
+    content: 'Brighten up the development process with some cute kittens',
+    tags: ['cool', 'image', 'placeholder', 'design', 'api'],
+  },
+]
+
+const pages:Searchable[] = [
+  {
+    type: 'page',
+    href: '/about',
+    title: 'About Me',
+    content: 'Event based state management API for typescript and React.',
+    tags: ['nodejs', 'javascript', 'proxy'],
+  },
+  
+   {
+    type: 'page',
+    href: '/meta',
+    title: 'About This App',
+    content: 'Learn more about how this app works under the hood',
+    tags: ['nextjs', 'shadcn', 'shadcn/ui', 'tailwind', 'vercel', 'internal'],
+  },
+]
+
+const projects:Searchable[] = [
+   {
+    type: 'project',
+    href: '/projects/nestore',
+    title: 'Nestore',
+    content: 'Event based state management API for typescript and React.',
+    tags: ['nodejs', 'javascript', 'proxy'],
+  },
+  {
+    type: 'project',
+    href: '/projects/hooks',
+    title: '@pratiq/hooks',
+    content: 'Collection of custom hooks, utilities and high-order components for React',
+    tags: ['React', 'CSR', 'Nextjs', 'SSG', 'SSR', 'ISR'],
+  },
+  {
+    type: 'project',
+    href: '/projects/mde',
+    title: 'MDE Markdown Editor',
+    content: 'VSCode inspired in-browser editor with shortcuts, snippets and command palette',
+    tags: ['Browser', 'local storage', '', 'Material UI', 'CSR', 'React'],
+  },
+  {
+    type: 'project',
+    href: '/projects/gitwell',
+    title: 'gitwell',
+    content: 'command line tool for frequent gitters.',
+    tags: ['python', 'cli'],
+  },
+
+]
+
+const blogs:Searchable[] = [
+    {
+    type: 'blog',
+    href: '/blog/good-image-component',
+    title: 'Creating a decent Image component',
+    content: 'Using vanilla React after using Next.js for many years - I feel the plain html <img> or <picture> components to be severely lacking',
+    tags: ['image', 'react', 'data-url', 'lazy-loading', 'blur effect'],
+  },
+   {
+    type: 'blog',
+    href: '/blog/quick-kv',
+    title: 'A Simple KV config API',
+    content: 'When developing, deploying and maintaining apps and sites, its common to require some config flags to toggle some features or behavior of the app',
+    tags: ['api', 'config', 'flags', 'vercel', 'next-kv', 'storage', 'db', 'in-memory-store'],
+  },
+]
+
+const socials:Searchable[] = [
+  {
+    type: 'linkedin',
+    href: 'https://linkedin.com/in/michael-jannetta',
+    title: 'LinkedIn',
+    content: '/pratiqdev - LinkedIn professional developer profile, portfolio and resume',
+    tags: ['social', 'contact', 'developer', 'job posting', 'career', 'Michael Jannetta'],
+  },
+  {
+    type: 'github',
+    href: 'https://github.com/pratiqdev',
+    title: 'GitHub',
+    content: '/pratiqdev - Check out some of my public work on GitHub',
+    tags: ['social', 'contact', 'developer', 'experiments', 'research', 'Michael Jannetta'],
+  },
+  {
+    type: 'wyzant',
+    href: 'https://wyzant.com/tutors/pratiqdev',
+    title: 'Wyzant',
+    content: '/pratiqdev - Need help with a bootcamp or assignment? Reach out for web design, development and deployment tutoring',
+    tags: ['social', 'contact', 'developer', 'tutor', 'education', 'teach', 'Michael Jannetta'],
+  },
+  {
+    type: 'instagram',
+    href: 'https://instagram.com/pratiqdev',
+    title: 'Instagram',
+    content: '/pratiqdev - Instagram social profile.',
+    tags: ['social', 'contact', 'developer', 'Michael Jannetta'],
+  },
+  {
+    type: 'twitter',
+    href: 'https://twitter.com/pratiqdev',
+    title: 'Twitter',
+    content: '/pratiqdev - Twitter social profile.',
+    tags: ['social', 'contact', 'developer', 'Michael Jannetta'],
+  },
+]
+
+const images:Searchable[] = [
+  {
+    type: 'image',
+    href: '/images/bento-design',
+    title: 'Bento design',
+    content: 'Design concepts using liminal space between clearly defined boundaries.',
+    tags: ['design', 'bento', 'figma'],
+  },
+    {
+    type: 'image',
+    href: '/images/figma-prototype',
+    title: 'Figma app prototype',
+    content: 'Check out how I use figma to design and prototype an application or website',
+    tags: ['design', 'figma', 'wireframe', 'sketch', 'previs', 'development', 'styling', 'content-creation'],
+  },
+]
+
+const searchable:Searchable[] = [
+  ...links,
+  ...pages,
+  ...projects,
+  ...blogs,
+  ...socials,
+  ...images
+]
+
 
 export default function Home() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-24">
-      <div className="z-10 max-w-5xl w-full items-center justify-between font-mono text-sm lg:flex">
-        <p className="fixed left-0 top-0 flex w-full justify-center border-b border-gray-300 bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto  lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4 lg:dark:bg-zinc-800/30">
-          Get started by editing&nbsp;
-          <code className="font-mono font-bold">src/app/page.tsx</code>
-        </p>
-        <div className="fixed bottom-0 left-0 flex h-48 w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:h-auto lg:w-auto lg:bg-none">
-          <a
-            className="pointer-events-none flex place-items-center gap-2 p-8 lg:pointer-events-auto lg:p-0"
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            By{' '}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className="dark:invert"
-              width={100}
-              height={24}
-              priority
-            />
-          </a>
-        </div>
-      </div>
+    <main>
+      <h1>shadcn/ui demo</h1>
 
-      <div className="relative flex place-items-center before:absolute before:h-[300px] before:w-[480px] before:-translate-x-1/2 before:rounded-full before:bg-gradient-radial before:from-white before:to-transparent before:blur-2xl before:content-[''] after:absolute after:-z-20 after:h-[180px] after:w-[240px] after:translate-x-1/3 after:bg-gradient-conic after:from-sky-200 after:via-blue-200 after:blur-2xl after:content-[''] before:dark:bg-gradient-to-br before:dark:from-transparent before:dark:to-blue-700 before:dark:opacity-10 after:dark:from-sky-900 after:dark:via-[#0141ff] after:dark:opacity-40 before:lg:h-[360px] z-[-1]">
-        <Image
-          className="relative dark:drop-shadow-[0_0_0.3rem_#ffffff70] dark:invert"
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
-      </div>
+    <Button>Default</Button>
 
-      <div className="mb-32 grid text-center lg:max-w-5xl lg:w-full lg:mb-0 lg:grid-cols-4 lg:text-left">
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Docs{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Find in-depth information about Next.js features and API.
-          </p>
-        </a>
 
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Learn{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Learn about Next.js in an interactive course with&nbsp;quizzes!
-          </p>
-        </a>
+    <div className="m-6 p-2 bg-slate-100 shadow-lg rounded-md">
+      <Search searchable={searchable}/>
 
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Templates{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Explore starter templates for Next.js.
-          </p>
-        </a>
+    </div>
 
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Deploy{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
-      </div>
+
+
     </main>
   )
 }
