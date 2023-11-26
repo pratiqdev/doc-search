@@ -9,36 +9,23 @@ DialogHeader,
 DialogTitle,
 DialogTrigger,
 } from "@/components/ui/dialog"
-import { debounce } from 'lodash-es'
-       import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { motion, AnimatePresence } from 'framer-motion'
-import { ReactSearchAutocomplete } from 'react-search-autocomplete'
  
 
 import { useState } from "react"
 import { Input } from "./ui/input"
 import { cn } from "@/lib/utils"
-import { LucideIcon, SearchIcon,XIcon, FileText, ExternalLink, FileQuestion, HashIcon, ImageIcon, TerminalSquare, GithubIcon, TwitterIcon, Linkedin, Instagram, X, Headphones, GraduationCap, BookOpenText, Trash2Icon } from "lucide-react"
+import { LucideIcon, SearchIcon,XIcon, FileText, ExternalLink, FileQuestion, HashIcon, ImageIcon, TerminalSquare, GithubIcon, TwitterIcon, Linkedin, Instagram, X, Headphones, GraduationCap, BookOpenText, Trash2Icon, Globe } from "lucide-react"
 import Fuse from 'fuse.js'
 import type { FuseResult, FuseResultMatch } from "fuse.js"
+import { Searchable } from "@/lib/types"
+import { getRandArrItem } from "@/lib/utils"
+import { fuseConfig, fuseKeyConfig, synonyms, curatedSuggestions } from "@/lib/searchable"
 
-export type Searchable = {
 
-  /** The icon to display with this item */
-  type: 'page' | 'blog' | 'link' | 'hash' | 'image' | 'project' | 'github' | 'instagram' | 'linkedin' | 'twitter' | 'wyzant';
-
-  /** DISPLAY: A path-like string that represents the route where you can find this info or a short description */
-  title: string;
-
-  /** Path to item */
-  href: string;
-
-  /** Any text content to be matched */
-  content: string;
-  
-  /** Any tag strings to be matched */
-  tags?: string[];
+export type AnyRecordIndex = { 
+  [key: string]: any; 
 }
 
 export type SearchResult = {
@@ -52,66 +39,25 @@ export type SearchResult = {
 }
 
 
-export interface SearchProps
-  extends React.InputHTMLAttributes<HTMLInputElement> {
+
+
+
+
+
+
+// &                                                                                                                                                                                                      
+// export interface SearchProps
+//   extends React.InputHTMLAttributes<HTMLInputElement> {
+//     fullWidth?: boolean;
+//     searchable: Record<string, any>[]
+//   }
+type SearchProps = React.InputHTMLAttributes<HTMLInputElement> & {
     fullWidth?: boolean;
     searchable: Searchable[]
   }
-
-const trimText = (text:string, maxLength: number = 40) => {
-  if (text.length <= maxLength) {
-    return text;
-  } else {
-    return text.slice(0, maxLength - 3) + '...';
-  }
-};
-
-const capitalizeFirstLetter = (str:string) => {
-    // Check if the input string is not empty
-    if (str.length === 0) {
-        return str;
-    }
-
-    // Capitalize the first letter and concatenate it with the rest of the string
-    return str.charAt(0).toUpperCase() + str.slice(1);
-}
-
-const createSearchableString = (...values:any[]):string => {
-  return values.map((value) => {
-    if (typeof value === 'string' || typeof value === 'number') {
-      return value.toString();
-    } else if (Array.isArray(value)) {
-      return '#' + value.join(' #');
-    } else if (typeof value === 'object' && value !== null) {
-      // Convert object values to a string representation
-      return Object.values(value).join(' ');
-    } else {
-      return '';
-    }
-  }).join(' ').toLowerCase();
-};
-
-const highlightWord = (text:string, value:string) => {
-  if (!text || !value) {
-    return text ?? ''
-  }
-
-  const regex = new RegExp(`(${value.split(' ').sort((a, b) => b.length - a.length).join('|')})`, 'gi');
-  return text.replace(regex, match => `<span class="text-indigo-600 font-semibold">${match}</span>`);
-};
-
-const getRandomItems = (array:any[], number:number) => {
-  const shuffledArray = array.sort(() => Math.random() - 0.5); // Shuffle the array
-  return shuffledArray.slice(0, number); // Get the first 'number' items
-};
-
-type Filterable = { score: number, strictMatch:boolean, looseMatch:boolean, matches: string[] }
-
-const curatedSuggestions = ['contact', 'projects', 'blog', 'about', 'pratiqdev', 'react', 'nextjs', 'node', 'python', 'golang', 'api', 'docker', 'image', 'css', 'html', 'sql', 'aws', 'mongodb']
-
-// &                                                                                                                                                                                                      
 const Search = React.forwardRef<HTMLInputElement, SearchProps>(
 ({ className, type, fullWidth = false, searchable, ...props }, ref) => {
+
       
   const [searchValue, setSearchValue] = useState('')
   const [strictMode, setStrictMode] = useState(false)
@@ -128,84 +74,77 @@ const Search = React.forwardRef<HTMLInputElement, SearchProps>(
   const fuse = React.useMemo(() => new Fuse(searchable, {
     includeScore: true,
     includeMatches: true,
-    useExtendedSearch: true,
-    minMatchCharLength: 1,
-    findAllMatches: true,
-    keys: ['title', 'content', 'href', 'tags'],
+    useExtendedSearch: fuseConfig.extended,
+    minMatchCharLength: fuseConfig.minMatch,
+    ignoreFieldNorm: fuseConfig.ignoreFieldNorm,
+    // increase the importance of shorter text samples
+    fieldNormWeight: fuseConfig.fieldNormWeight,
+    findAllMatches: fuseConfig.findAllMatches,
+    threshold: fuseConfig.threshold,
+    keys: fuseConfig.keys,
   }), [searchable])
 
+  const searchMatch = (matches:string[] = [], optionalNegators:string[] = []):boolean => {
+    return (
+      matches.length > 0 &&
+      matches.some((match) => searchValue.includes(match)) &&
+      (optionalNegators.length === 0 || optionalNegators.every((neg) => !searchValue.includes(neg)))
+    );
+  } 
 
-  const renderHighlightedText = (text:string, matches:FuseResultMatch[]) => {
-    const parts = [];
-    let lastIndex = 0;
 
-    matches.forEach((match) => {
-      const [start, end] = match.indices[0];
-      const prefix = text.slice(lastIndex, start);
-      const matchText = text.slice(start, end + 1);
-
-      parts.push(prefix);
-      parts.push(<span className="highlight">{matchText}</span>);
-
-      lastIndex = end + 1;
-    });
-
-    parts.push(text.slice(lastIndex));
-
-    return <span>{parts}</span>;
-  };
 
 
   // &                                                                                                                                                                                                      
   const SearchResult = ({  score, matches, item }: FuseResult<Searchable>) => {
 
+    const temp:Searchable & AnyRecordIndex = { ...item }
+
+
     const handleAction = () => {
-      console.log('search result action:', item)
+      console.log('search result action:', item.href)
     }
 
     let icon: React.ReactNode;
         switch (item.type) {
           case 'page': icon = <FileText  className=""/>; break;
-          case 'blog': icon = <BookOpenText  className="" />; break;
-          case 'link': icon = <ExternalLink  className=""/>; break;
+          case 'blog': icon = <BookOpenText  className={cn("", searchMatch(['blog', 'article', 'research']) && 'text-indigo-600')} />; break;
+          case 'link': icon = <ExternalLink  className={cn("", searchMatch(['link'], ['linked']) && 'text-indigo-600')} />; break;
           case 'hash': icon = <HashIcon  className=""/>; break;
-          case 'image': icon = <ImageIcon  className="" />; break;
-          case 'project': icon = <TerminalSquare  className="" />; break;
-          case 'github': icon = <GithubIcon  className="" />; break;
-          case 'twitter': icon = <TwitterIcon  className=""/>; break;
-          case 'linkedin': icon = <Linkedin  className=""/>; break;
-          case 'instagram': icon = <Instagram  className="" />; break;
-          case 'wyzant': icon = <GraduationCap  className="" />; break;
+          case 'image': icon = <ImageIcon  className={cn("", searchMatch(['image', 'img', 'media'], ['insta']) && 'text-indigo-600')}  />; break;
+          case 'project': icon = <TerminalSquare  className={cn("", searchMatch(['proj']) && 'text-indigo-600')} />; break;
+          case 'github': icon = <GithubIcon  className={cn("", searchMatch(['gith', 'social', 'contact', 'prof', 'dev', 'pratiqdev']) && 'text-indigo-600')}  />; break;
+          case 'twitter': icon = <TwitterIcon  className={cn("", searchMatch(['twitt', 'social', 'contact', 'pratiqdev']) && 'text-indigo-600')} />; break;
+          case 'linkedin': icon = <Linkedin  className={cn("", searchMatch(['linked', 'social', 'contact', 'prof', 'jannetta']) && 'text-indigo-600')} />; break;
+          case 'instagram': icon = <Instagram  className={cn("", searchMatch(['insta', 'social', 'contact', 'prof', 'dev']) && 'text-indigo-600')}  />; break;
+          case 'wyzant': icon = <GraduationCap  className={cn("", searchMatch(['wyz', 'social', 'contact', 'prof', 'dev']) && 'text-indigo-600')}  />; break;
+          case 'site': icon = <Globe  className={cn("", searchMatch(['site', 'app']) && 'text-indigo-600')}  />; break;
           default: icon = <FileQuestion  className="" />; 
         }
 
-        let section = item.type as string
+        let section = temp.type as string 
 
         // swap out social types for text 'social'
         if(['wyzant', 'twitter', 'github', 'linkedin', 'instagram'].some(x => x === type)){
           section = 'social'
         }
 
-        matches?.forEach((match:FuseResultMatch) => {
-          if(!match.key || !match.indices) return;
-          let key = match.key
-          if(!key || item[key]){
-            console.log(`matches | error: no key? '${key}'`, match)
-            return
-          }
-          console.log(`matches | Parsing matches for '${item[key]}'-'${item.title}':'${key}'`)
-          match.indices.forEach(indc => {
-            let value = item[key] ?? 'no-key'
-            let [start, end] = indc
-            console.log(`matches | replacing indices [${start}, ${end}]`)
-            console.log(`matches | original value '${value}'`)
-            let chunk = value.slice(start, end) ?? 'no-chunk'
-            console.log(`matches | extracted chunk '${chunk}'`)
-            item[key] = (item[key] as string).split('').toSpliced(start, end-start, `<span className="text-red-500">${chunk}</span>`).join('') ?? 'oops-result'
-          })
-        })
+        matches?.forEach(({indices, key, value}) => {
+          if(!key || key === 'type') return
 
-        console.log('matches:', item.title, searchValue, {matches , item})
+          let k = Array.isArray(key)
+            ? key[0]
+            : key.includes(',') ? key.split(',')[0] ?? '' : key
+
+          // Replace the matched part of the string with a <span> element
+          temp[k] = value?.replace(
+            new RegExp(`(${indices.map(([start, end]) => value?.slice(start, end + 1)).join('|')})`, 'g'),
+            '<span class="text-indigo-600 underline">$1</span>'
+          );
+
+          console.log(`key highlighted '${k}':`, temp[k]); // Log the replaced string
+        });
+
     return (
       <div
          className="flex items-center rounded-[.5rem] bg-white p-2 py-1 mx-[2px] text-sm mt-1 hover:bg-indigo-50 duration-200 flex-1 cursor-pointer group/result" 
@@ -218,14 +157,17 @@ const Search = React.forwardRef<HTMLInputElement, SearchProps>(
           {icon}
         </div>
         <div className="flex flex-col text-xs overflow-hidden">
-          {/* <pre>{JSON.stringify(item)}</pre> */}
-          {/* <pre>{JSON.stringify(matches)}</pre> */}
-          <p className="font-regular tracking-wide" dangerouslySetInnerHTML={{ __html: result.title  }} />
-          <p className="font-light tracking-wide truncate whitespace-nowrap h-4" dangerouslySetInnerHTML={{ __html: result.content  }} />
-          {/* <p className="font-light tracking-wide truncate whitespace-nowrap h-4" dangerouslySetInnerHTML={{ __html:highlightWord((context) ?? '', searchValue)  }} /> */}
-          {/* <p className="font-light tracking-wide truncate whitespace-nowrap h-4" dangerouslySetInnerHTML={{ __html:highlightWord((context?.length && context.length > 1 ? context : subtitle) ?? '', searchValue)  }} /> */}
+          <p className="font-regular tracking-wide" dangerouslySetInnerHTML={{ __html: temp.title  }} />
+          <p className="font-light tracking-wide truncate whitespace-nowrap h-4" dangerouslySetInnerHTML={{ __html: temp.content  }} />
         </div>
       </div>
+    )
+  }
+
+
+  const SuggestionComponent = ({ key, value }: { key: number, value: string }) => {
+    return(
+      <Button onClick={() => setSearchValue(value)} key={key} variant="link">{value}</Button>
     )
   }
 
@@ -281,16 +223,32 @@ const Search = React.forwardRef<HTMLInputElement, SearchProps>(
     setSearchResults(res)
   }, [strictMode, searchValue, fuse])
 
+  React.useEffect(() => {
+    if(dialogOpen){ 
+      try{
+        if(!inputRef.current){
+          console.log('focus error: no current inputRef:', inputRef.current)
+          return
+        }
+        inputRef.current.focus() 
+      }catch(err){
+console.log('focus error:', err)
+      }
+    }
+  }, [dialogOpen])
+
 
       
 
   // &                                                                                                                                                                                                      
   return (
     <>
-    <Dialog  open={dialogOpen} onOpenChange={(b) => { setDialogOpen(b); inputRef?.current?.focus() }}>
+    <Dialog  open={dialogOpen} onOpenChange={(b) => { setDialogOpen(b); inputRef?.current?.focus() }} >
       <DialogTrigger asChild>
       <div className="relative flex items-center max-w-min border-red-500 cursor-text" >
-        <Input type="text" placeholder="Search" value={searchValue} className={cn('relative w-auto min-w-24 z-0 pointer-events-none')}/>
+        <Input type="text" placeholder="Search" value={searchValue} className={cn('relative w-auto min-w-24 z-0')} 
+          onChange={(event: React.ChangeEvent<HTMLInputElement>) => { setSearchValue(event.target.value); setDialogOpen(true); inputRef.current?.focus() }} 
+        />
         <SearchIcon className="absolute left-[.8rem] h-4"/>
         <XIcon className={cn("absolute right-[.8rem] h-6 w-6 p-1 rounded-full opacity-0 duration-200 pointer-events-none cursor-pointer hover:bg-indigo-200", 
           searchValue.length && "opacity-100 pointer-events-auto"
@@ -299,7 +257,7 @@ const Search = React.forwardRef<HTMLInputElement, SearchProps>(
         />
       </div>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px] max-w-[800px] bg-slate-50 rounded-lg md:rounded-lg  flex flex-col items-center gap-1 p-4">
+      <DialogContent   className="sm:max-w-[425px] max-w-[800px] bg-slate-50 rounded-lg md:rounded-lg  flex flex-col items-center gap-1 p-4">
           {/* <DialogTitle className="text-left w-full p-1 mb-1">Search content</DialogTitle> */}
         
  
@@ -307,21 +265,33 @@ const Search = React.forwardRef<HTMLInputElement, SearchProps>(
         {/* //+ Real Search Input */}
         <div className="relative flex items-center w-full z-2 h-full" >
           <SearchIcon className="absolute left-[.8rem] h-4 text-slate-600 z-10"/>
-          <Trash2Icon tabIndex={0} className={cn("absolute z-10 right-[2.2rem] h-6 w-6 p-1 rounded-full opacity-0 duration-200 pointer-events-none cursor-pointer text-slate-600 hover:bg-indigo-200 hover:text-black", 
+          <Input 
+            ref={inputRef} 
+            tabIndex={0}
+            type="text" 
+            placeholder="Search" 
+            autoFocus
+            value={searchValue} 
+            onChange={(event: React.ChangeEvent<HTMLInputElement>) => setSearchValue(event.target.value)} 
+            onKeyDown={(event: React.KeyboardEvent) => onEnter(event, () => {
+              let action =  searchResults?.[0]?.item?.href
+              console.log('input auto action (first item)', action)
+            }) }
+            className={cn('relative w-full')}
+          />
+          <Trash2Icon 
+            tabIndex={1} className={cn("absolute z-10 right-[2.2rem] h-6 w-6 p-1 rounded-full opacity-0 duration-200 pointer-events-none cursor-pointer text-slate-600 hover:bg-indigo-200 hover:text-black", 
             searchValue.length && "opacity-100 pointer-events-auto"
           )}
             onClick={handleClear}
             onKeyDown={(event) => onEnter(event, handleClear)} 
 
           />
-          <XIcon tabIndex={0} className={cn("absolute right-[.8rem] h-6 w-6 p-1 z-10 rounded-full cursor-pointer hover:bg-indigo-200 text-slate-600 hover:text-black")}
+          <XIcon tabIndex={2} className={cn("absolute right-[.8rem] h-6 w-6 p-1 z-10 rounded-full cursor-pointer hover:bg-indigo-200 text-slate-600 hover:text-black")}
             onClick={handleClose}
             onKeyDown={(event) => onEnter(event, handleClose)} 
 
           />
-          <Input ref={inputRef} type="text" placeholder="Search" value={searchValue} 
-          onChange={(event: React.ChangeEvent<HTMLInputElement>) => setSearchValue(event.target.value)} 
-          className={cn('relative w-full')} />
         {/* <div className="z-10 w-full">
 
          <ReactSearchAutocomplete
@@ -340,7 +310,7 @@ const Search = React.forwardRef<HTMLInputElement, SearchProps>(
         <div className="w-full h-4 text-xs text-left pl-[2.6rem] flex gap-0 text-indigo-400  z-10 items-center focus:ring-0">
           {suggestions.map((term, index) => 
             <p 
-              tabIndex={0} 
+              tabIndex={3} 
               onClick={() => onSuggestionSelected(term)} 
               // set searchValue on focus - bad result! removes all other suggestions
               // onFocus={(event: React.FocusEvent) => setSearchValue(term)} 
@@ -362,7 +332,7 @@ const Search = React.forwardRef<HTMLInputElement, SearchProps>(
           {(!searchValue) && <div className={cn("text-slate-500 text-center opacity-100 duration-200 h-[21rem] flex flex-col items-center justify-center")}>
             Explore my portfolio with a simple search
             <div className="text-sm">
-              {getRandomItems(curatedSuggestions, 3).map((x:string, idx:number) => <Button onClick={() => setSearchValue(x)} key={idx} variant="link">{x}</Button>)}
+              {[ ...getRandArrItem(curatedSuggestions.primary, 1), ...getRandArrItem(curatedSuggestions.secondary, 2) ].map((x:string, idx:number) => <SuggestionComponent key={idx} value={x} />)}
             </div>
           </div>
           }
